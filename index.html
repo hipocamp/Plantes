@@ -3,206 +3,155 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Reg de Plantes</title>
+    <title>Reg de Plantes TEST</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <style>
-        .due-date { color: #ef4444; font-weight: bold; animation: pulse 2s infinite; }
-        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
-    </style>
 </head>
-<body class="bg-gray-50 text-gray-900 pb-20">
+<body class="bg-gray-100 pb-20">
 
-    <!-- CONTINGUT PRINCIPAL -->
     <div class="max-w-md mx-auto p-4">
-        <header class="flex justify-between items-center mb-6 py-2">
+        <header class="flex justify-between items-center mb-6 py-4">
             <h1 class="text-2xl font-bold text-green-700">🌿 El meu Jardí</h1>
-            <button onclick="obrirFormulari()" class="bg-green-600 text-white w-12 h-12 rounded-full shadow-lg flex items-center justify-center text-3xl font-light active:bg-green-800">
-                +
-            </button>
+            <div class="space-x-2">
+                <!-- BOTÓ PER NETEJAR TOT SI FALLA -->
+                <button onclick="resetejarApp()" class="text-[10px] bg-red-100 text-red-600 px-2 py-1 rounded">Reset</button>
+                <button onclick="obrirFormulari()" class="bg-green-600 text-white w-12 h-12 rounded-full shadow-lg text-3xl font-light">
+                    +
+                </button>
+            </div>
         </header>
 
-        <div id="llistaPlantes" class="space-y-4">
-            <!-- Les plantes sortiran aquí -->
+        <div id="llistaPlantes" class="space-y-4 text-center text-gray-500 pt-10">
+            Carregant...
         </div>
     </div>
 
-    <!-- FORMULARI (MODAL) -->
-    <div id="modal" class="hidden fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-4 z-50">
-        <div class="bg-white p-6 rounded-2xl w-full max-w-sm shadow-2xl overflow-y-auto max-h-[90vh]">
-            <h2 id="modalTitol" class="text-xl font-bold mb-4 text-gray-800">Nova Planta</h2>
-            
-            <input type="hidden" id="idEdicio">
-            
+    <!-- FORMULARI -->
+    <div id="modal" class="hidden fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50">
+        <div class="bg-white p-6 rounded-2xl w-full max-w-sm">
+            <h2 class="text-xl font-bold mb-4">Nova Planta</h2>
             <div class="space-y-4">
-                <div>
-                    <label class="text-xs font-bold text-gray-400 uppercase">Nom</label>
-                    <input type="text" id="nomPlanta" class="w-full border-b-2 border-gray-100 p-2 outline-none focus:border-green-500">
-                </div>
-                
-                <div>
-                    <label class="text-xs font-bold text-gray-400 uppercase">Cada quants dies es rega?</label>
-                    <input type="number" id="freqPlanta" value="3" class="w-full border-b-2 border-gray-100 p-2 outline-none focus:border-green-500">
-                </div>
-                
-                <div>
-                    <label class="text-xs font-bold text-gray-400 uppercase">Últim reg (pots triar passat)</label>
-                    <input type="date" id="dataReg" class="w-full border-b-2 border-gray-100 p-2 outline-none focus:border-green-500 bg-white">
-                </div>
-                
-                <div id="seccioFoto">
-                    <label class="text-xs font-bold text-gray-400 uppercase text-red-500">Foto (OBLIGATÒRIA)</label>
-                    <input type="file" id="fotoPlanta" accept="image/*" class="w-full text-sm mt-2">
-                </div>
+                <input type="text" id="nom" placeholder="Nom de la planta" class="w-full border-b p-2 outline-none">
+                <input type="number" id="freq" value="3" class="w-full border-b p-2 outline-none">
+                <input type="date" id="data" class="w-full border-b p-2 outline-none bg-white">
+                <input type="file" id="foto" accept="image/*" class="w-full text-sm">
             </div>
-            
-            <div class="flex justify-end space-x-3 mt-8">
-                <button onclick="tancarFormulari()" class="px-4 py-2 text-gray-400 font-medium italic">Cancel·lar</button>
-                <button onclick="guardarPlanta()" id="btnGuardar" class="px-6 py-2 bg-green-600 text-white rounded-xl font-bold shadow-md">GUARDAR</button>
+            <div class="flex justify-end space-x-3 mt-6">
+                <button onclick="document.getElementById('modal').classList.add('hidden')" class="px-4 py-2 text-gray-400">Cancel·lar</button>
+                <button onclick="guardar()" class="px-6 py-2 bg-green-600 text-white rounded-lg font-bold">GUARDAR</button>
             </div>
         </div>
     </div>
 
     <script>
-        // CARREGAR DADES AMB SEGURETAT
+        // 1. GESTIÓ D'ERRORS CRÍTICS
+        window.onerror = function(msg) { alert("Error detectat: " + msg); };
+
         let plantes = [];
-        try {
-            const dadesGuardades = localStorage.getItem('plantes_v1');
-            plantes = dadesGuardades ? JSON.parse(dadesGuardades) : [];
-        } catch (e) {
-            console.error("Error carregant dades", e);
-            plantes = [];
-        }
 
-        // MOSTRAR FORMULARI
-        function obrirFormulari(id = null) {
-            const modal = document.getElementById('modal');
-            const dataInput = document.getElementById('dataReg');
-            
-            // Data d'avui per defecte
-            const avui = new Date().toISOString().split('T')[0];
-            dataInput.value = avui;
-
-            if (id) {
-                const p = plantes.find(x => x.id === id);
-                document.getElementById('idEdicio').value = id;
-                document.getElementById('modalTitol').innerText = "Editar " + p.name;
-                document.getElementById('nomPlanta').value = p.name;
-                document.getElementById('freqPlanta').value = p.freq;
-                document.getElementById('dataReg').value = p.lastReg.split('T')[0];
-                document.getElementById('seccioFoto').style.display = 'none';
-            } else {
-                document.getElementById('idEdicio').value = "";
-                document.getElementById('modalTitol').innerText = "Nova Planta";
-                document.getElementById('nomPlanta').value = "";
-                document.getElementById('freqPlanta').value = "3";
-                document.getElementById('seccioFoto').style.display = 'block';
-                document.getElementById('fotoPlanta').value = "";
+        // 2. CARREGAR DADES
+        function carregar() {
+            try {
+                const guardat = localStorage.getItem('plantes_v2');
+                plantes = guardat ? JSON.parse(guardat) : [];
+                dibuixar();
+            } catch (e) {
+                alert("Error llegint dades. Fes Reset.");
+                plantes = [];
             }
-            modal.classList.remove('hidden');
         }
 
-        function tancarFormulari() {
-            document.getElementById('modal').classList.add('hidden');
+        function resetejarApp() {
+            if(confirm("Vols esborrar-ho tot per arreglar l'app?")) {
+                localStorage.clear();
+                location.reload();
+            }
         }
 
-        // GUARDAR PLANTA
-        function guardarPlanta() {
-            const idEdicio = document.getElementById('idEdicio').value;
-            const nom = document.getElementById('nomPlanta').value;
-            const freq = parseInt(document.getElementById('freqPlanta').value);
-            const dataRegValue = document.getElementById('dataReg').value;
-            const fotoFile = document.getElementById('fotoPlanta').files[0];
+        function obrirFormulari() {
+            console.log("Botó premut"); // Per veure al navegador de PC
+            document.getElementById('modal').classList.remove('hidden');
+            document.getElementById('data').value = new Date().toISOString().split('T')[0];
+        }
 
-            if (!nom || !dataRegValue) return alert("Posa el nom i la data!");
+        function guardar() {
+            const nom = document.getElementById('nom').value;
+            const freq = parseInt(document.getElementById('freq').value);
+            const data = document.getElementById('data').value;
+            const fotoFile = document.getElementById('foto').files[0];
 
-            const dataISO = new Date(dataRegValue).toISOString();
+            if (!nom || !fotoFile || !data) {
+                alert("Falta nom, data o foto!");
+                return;
+            }
 
-            if (idEdicio) {
-                // MODIFICAR EXISTENT
-                plantes = plantes.map(p => {
-                    if (p.id == idEdicio) {
-                        return { ...p, name: nom, freq: freq, lastReg: dataISO };
-                    }
-                    return p;
-                });
-                actualitzarTot();
-            } else {
-                // CREAR NOVA (Necessita foto)
-                if (!fotoFile) return alert("Has de posar una foto!");
-                
-                const lector = new FileReader();
-                lector.onload = function(e) {
-                    const img = new Image();
-                    img.onload = function() {
-                        // Comprimir
-                        const canvas = document.createElement('canvas');
-                        const context = canvas.getContext('2d');
-                        const midaMax = 400;
-                        let ample = img.width;
-                        let alt = img.height;
-                        
-                        if (ample > alt) {
-                            if (ample > midaMax) { alt *= midaMax / ample; ample = midaMax; }
-                        } else {
-                            if (alt > midaMax) { ample *= midaMax / alt; alt = midaMax; }
-                        }
-                        canvas.width = ample;
-                        canvas.height = alt;
-                        context.drawImage(img, 0, 0, ample, alt);
-                        
-                        const novaPlanta = {
-                            id: Date.now(),
-                            name: nom,
-                            freq: freq,
-                            lastReg: dataISO,
-                            photo: canvas.toDataURL('image/jpeg', 0.7)
-                        };
-                        
-                        plantes.push(novaPlanta);
-                        actualitzarTot();
+            const lector = new FileReader();
+            lector.onload = function(e) {
+                const img = new Image();
+                img.onload = function() {
+                    const canvas = document.createElement('canvas');
+                    const ctx = canvas.getContext('2d');
+                    canvas.width = 300; // Molt petita per evitar errors de memòria
+                    canvas.height = (img.height * 300) / img.width;
+                    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                    
+                    const nova = {
+                        id: Date.now(),
+                        name: nom,
+                        freq: freq,
+                        last: new Date(data).toISOString(),
+                        photo: canvas.toDataURL('image/jpeg', 0.6)
                     };
-                    img.src = e.target.result;
+                    
+                    plantes.push(nova);
+                    localStorage.setItem('plantes_v2', JSON.stringify(plantes));
+                    document.getElementById('modal').classList.add('hidden');
+                    dibuixar();
                 };
-                lector.readAsDataURL(fotoFile);
-            }
+                img.src = e.target.result;
+            };
+            lector.readAsDataURL(fotoFile);
         }
 
-        function regarPlanta(id) {
+        function regar(id) {
             plantes = plantes.map(p => {
-                if (p.id === id) p.lastReg = new Date().toISOString();
+                if (p.id === id) p.last = new Date().toISOString();
                 return p;
             });
-            actualitzarTot();
+            localStorage.setItem('plantes_v2', JSON.stringify(plantes));
+            dibuixar();
         }
 
-        function esborrarPlanta(id) {
-            if (confirm("Vols eliminar-la?")) {
-                plantes = plantes.filter(p => p.id !== id);
-                actualitzarTot();
-            }
-        }
-
-        function actualitzarTot() {
-            localStorage.setItem('plantes_v1', JSON.stringify(plantes));
-            dibuixarPlantes();
-            tancarFormulari();
-        }
-
-        function dibuixarPlantes() {
+        function dibuixar() {
             const llista = document.getElementById('llistaPlantes');
             llista.innerHTML = "";
 
             if (plantes.length === 0) {
-                llista.innerHTML = '<p class="text-center text-gray-400 mt-10 italic">No hi ha plantes.<br>Clica el botó + per afegir-ne.</p>';
+                llista.innerHTML = "No hi ha plantes. Clica +";
                 return;
             }
 
             plantes.forEach(p => {
-                const dataUltim = new Date(p.lastReg);
-                const dataPropera = new Date(dataUltim);
-                dataPropera.setDate(dataUltim.getDate() + p.freq);
-                
-                const avui = new Date();
-                avui.setHours(0,0,0,0);
-                const proper = new Date(dataPropera);
-                proper.setHours(0,
+                const last = new Date(p.last);
+                const next = new Date(last);
+                next.setDate(last.getDate() + p.freq);
+                const isDue = new Date() >= next;
+
+                const card = document.createElement('div');
+                card.className = "bg-white p-4 rounded-xl shadow flex items-center border-l-4 " + (isDue ? "border-red-500" : "border-green-500");
+                card.innerHTML = `
+                    <img src="${p.photo}" class="w-12 h-12 rounded-full object-cover">
+                    <div class="ml-3 flex-1 text-left">
+                        <h3 class="font-bold text-sm">${p.name}</h3>
+                        <p class="text-[10px] text-gray-400">Toca: ${next.toLocaleDateString()}</p>
+                    </div>
+                    <button onclick="regar(${p.id})" class="bg-blue-500 text-white text-[10px] px-3 py-2 rounded-lg font-bold">REGAR</button>
+                `;
+                llista.appendChild(card);
+            });
+        }
+
+        // INICIAR SEMPRE
+        carregar();
+    </script>
+</body>
+</html>
