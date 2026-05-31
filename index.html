@@ -3,21 +3,26 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Reg de Plantes PRO</title>
+    <title>Reg de Plantes PRO + Backup</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         .due-date { color: #ef4444; font-weight: bold; animation: pulse 2s infinite; }
         @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
     </style>
 </head>
-<body class="bg-gray-50 pb-20 text-gray-800">
+<body class="bg-slate-50 pb-20 text-gray-800">
 
     <div class="max-w-md mx-auto p-4">
         <!-- CAPÇALERA -->
-        <header class="flex justify-between items-center mb-6 py-4 border-b border-gray-200">
+        <header class="flex justify-between items-center mb-4 py-4 border-b border-gray-200">
             <div>
                 <h1 class="text-2xl font-bold text-green-700 leading-none">🌿 El meu Jardí</h1>
-                <button onclick="resetejarTot()" class="text-[9px] text-red-400 font-bold uppercase mt-1 tracking-widest">Reiniciar App</button>
+                <div class="flex gap-3 mt-2">
+                    <button onclick="exportarDades()" class="text-[9px] text-blue-500 font-bold uppercase tracking-widest">Exportar</button>
+                    <button onclick="document.getElementById('importInput').click()" class="text-[9px] text-orange-500 font-bold uppercase tracking-widest">Importar</button>
+                    <button onclick="resetejarTot()" class="text-[9px] text-red-400 font-bold uppercase tracking-widest">Reset</button>
+                </div>
+                <input type="file" id="importInput" class="hidden" accept=".json" onchange="importarDades(event)">
             </div>
             <button onclick="obrirFormulari()" class="bg-green-600 text-white w-12 h-12 rounded-full shadow-lg text-3xl flex items-center justify-center active:scale-90 transition-transform">
                 +
@@ -25,40 +30,32 @@
         </header>
 
         <!-- LLISTA DE PLANTES -->
-        <div id="llistaPlantes" class="space-y-4">
-            <!-- Es genera dinàmicament -->
-        </div>
+        <div id="llistaPlantes" class="space-y-4"></div>
     </div>
 
     <!-- MODAL (FORMULARI) -->
     <div id="modal" class="hidden fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-50">
         <div class="bg-white p-6 rounded-3xl w-full max-w-sm shadow-2xl">
             <h2 id="modalTitol" class="text-xl font-bold mb-6 text-gray-800 text-center">Nova Planta</h2>
-            
             <input type="hidden" id="idEdicio">
-            
             <div class="space-y-4">
                 <div>
                     <label class="text-[10px] font-bold text-gray-400 uppercase ml-1">Nom de la planta</label>
                     <input type="text" id="nom" class="w-full bg-gray-50 rounded-xl p-3 outline-none focus:ring-2 focus:ring-green-500 border-none text-sm">
                 </div>
-                
                 <div>
                     <label class="text-[10px] font-bold text-gray-400 uppercase ml-1">Freqüència (cada quants dies)</label>
                     <input type="number" id="freq" value="3" class="w-full bg-gray-50 rounded-xl p-3 outline-none focus:ring-2 focus:ring-green-500 border-none text-sm">
                 </div>
-                
                 <div>
-                    <label class="text-[10px] font-bold text-gray-400 uppercase ml-1">Quan la vas regar per últim cop?</label>
+                    <label class="text-[10px] font-bold text-gray-400 uppercase ml-1">Últim reg</label>
                     <input type="date" id="data" class="w-full bg-gray-50 rounded-xl p-3 outline-none focus:ring-2 focus:ring-green-500 border-none text-sm">
                 </div>
-                
                 <div id="seccioFoto">
                     <label class="text-[10px] font-bold text-gray-400 uppercase ml-1">Foto</label>
                     <input type="file" id="foto" accept="image/*" class="w-full text-[10px] text-gray-500 mt-1 file:bg-green-100 file:border-0 file:rounded-full file:px-4 file:py-1 file:text-green-700 file:font-bold">
                 </div>
             </div>
-            
             <div class="flex justify-between mt-8">
                 <button onclick="tancarFormulari()" class="text-sm text-gray-400 font-medium px-4 py-2">Enrere</button>
                 <button onclick="guardar()" class="bg-green-600 text-white px-8 py-3 rounded-2xl font-bold shadow-lg active:bg-green-700">GUARDAR</button>
@@ -68,35 +65,65 @@
 
     <script>
         let plantes = [];
+        const STORAGE_KEY = 'plantes_vFinal';
 
-        // 1. CARREGAR DADES
         function inicialitzar() {
             try {
-                const dades = localStorage.getItem('plantes_vFinal');
+                const dades = localStorage.getItem(STORAGE_KEY);
                 plantes = dades ? JSON.parse(dades) : [];
                 dibuixar();
             } catch (e) {
-                console.error("Error carregant", e);
                 plantes = [];
             }
         }
 
-        // 2. RESET TOTAL
+        // --- FUNCIONS DE BACKUP ---
+        function exportarDades() {
+            if (plantes.length === 0) return alert("No hi ha dades per exportar.");
+            const dadesStr = JSON.stringify(plantes);
+            const blob = new Blob([dadesStr], { type: "application/json" });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `jardi_backup_${new Date().toISOString().split('T')[0]}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        function importarDades(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const importades = JSON.parse(e.target.result);
+                    if (Array.isArray(importades)) {
+                        if (confirm(`Vols importar ${importades.length} plantes? Això substituirà el que tinguis ara.`)) {
+                            plantes = importades;
+                            desarDades();
+                        }
+                    }
+                } catch (err) {
+                    alert("El fitxer no és vàlid.");
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        // --- GESTIÓ DE L'APP ---
         function resetejarTot() {
-            if(confirm("Vols esborrar-ho tot i començar de zero?")) {
+            if(confirm("Vols esborrar-ho tot? RECOMANACIÓ: Exporta primer les dades.")) {
                 localStorage.clear();
                 location.reload();
             }
         }
 
-        // 3. FORMULARI
         function obrirFormulari(id = null) {
             const modal = document.getElementById('modal');
-            const dataInput = document.getElementById('data');
-            const seccioFoto = document.getElementById('seccioFoto');
             const idInput = document.getElementById('idEdicio');
             const titol = document.getElementById('modalTitol');
-
             modal.classList.remove('hidden');
             
             if (id) {
@@ -106,15 +133,14 @@
                 document.getElementById('nom').value = p.name;
                 document.getElementById('freq').value = p.freq;
                 document.getElementById('data').value = p.last.split('T')[0];
-                seccioFoto.classList.add('hidden'); // No demanem foto per editar
+                document.getElementById('seccioFoto').classList.add('hidden');
             } else {
                 idInput.value = "";
                 titol.innerText = "Nova Planta";
                 document.getElementById('nom').value = "";
                 document.getElementById('freq').value = "3";
                 document.getElementById('data').value = new Date().toISOString().split('T')[0];
-                document.getElementById('foto').value = "";
-                seccioFoto.classList.remove('hidden');
+                document.getElementById('seccioFoto').classList.remove('hidden');
             }
         }
 
@@ -122,7 +148,6 @@
             document.getElementById('modal').classList.add('hidden');
         }
 
-        // 4. GUARDAR
         function guardar() {
             const idEdit = document.getElementById('idEdicio').value;
             const nom = document.getElementById('nom').value;
@@ -130,50 +155,27 @@
             const dataReg = document.getElementById('data').value;
             const fotoInput = document.getElementById('foto');
 
-            if (!nom || !dataReg || !freq) {
-                alert("Emplena els camps obligatoris!");
-                return;
-            }
+            if (!nom || !dataReg || !freq) return alert("Camps incomplets.");
 
             const dataISO = new Date(dataReg).toISOString();
 
             if (idEdit) {
-                // MODIFICAR
-                plantes = plantes.map(p => {
-                    if (p.id == idEdit) {
-                        return { ...p, name: nom, freq: freq, last: dataISO };
-                    }
-                    return p;
-                });
+                plantes = plantes.map(p => p.id == idEdit ? { ...p, name: nom, freq: freq, last: dataISO } : p);
                 desarDades();
             } else {
-                // NOU
-                if (!fotoInput.files[0]) {
-                    alert("Has de triar una foto!");
-                    return;
-                }
+                if (!fotoInput.files[0]) return alert("Falta foto.");
                 const lector = new FileReader();
                 lector.onload = function(e) {
                     const img = new Image();
                     img.onload = function() {
                         const canvas = document.createElement('canvas');
-                        const ctx = canvas.getContext('2d');
-                        const MAX_SIZE = 400;
-                        let w = img.width;
-                        let h = img.height;
-                        if (w > h) { if (w > MAX_SIZE) { h *= MAX_SIZE / w; w = MAX_SIZE; } }
-                        else { if (h > MAX_SIZE) { w *= MAX_SIZE / h; h = MAX_SIZE; } }
+                        const MAX = 400;
+                        let w = img.width, h = img.height;
+                        if (w > h) { if (w > MAX) { h *= MAX / w; w = MAX; } }
+                        else { if (h > MAX) { w *= MAX / h; h = MAX; } }
                         canvas.width = w; canvas.height = h;
-                        ctx.drawImage(img, 0, 0, w, h);
-
-                        const nova = {
-                            id: Date.now(),
-                            name: nom,
-                            freq: freq,
-                            last: dataISO,
-                            photo: canvas.toDataURL('image/jpeg', 0.7)
-                        };
-                        plantes.push(nova);
+                        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+                        plantes.push({ id: Date.now(), name: nom, freq: freq, last: dataISO, photo: canvas.toDataURL('image/jpeg', 0.7) });
                         desarDades();
                     };
                     img.src = e.target.result;
@@ -183,72 +185,50 @@
         }
 
         function regar(id) {
-            plantes = plantes.map(p => {
-                if (p.id === id) p.last = new Date().toISOString();
-                return p;
-            });
+            plantes = plantes.map(p => p.id === id ? { ...p, last: new Date().toISOString() } : p);
             desarDades();
         }
 
         function esborrar(id) {
-            if(confirm("Eliminar aquesta planta?")) {
+            if(confirm("Eliminar?")) {
                 plantes = plantes.filter(p => p.id !== id);
                 desarDades();
             }
         }
 
         function desarDades() {
-            localStorage.setItem('plantes_vFinal', JSON.stringify(plantes));
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(plantes));
             tancarFormulari();
             dibuixar();
         }
 
-        // 5. DIBUIXAR
         function dibuixar() {
             const llista = document.getElementById('llistaPlantes');
-            llista.innerHTML = "";
-
-            if (plantes.length === 0) {
-                llista.innerHTML = `<div class="text-center py-20 text-gray-300 italic">No hi ha plantes.<br>Clica el botó + per començar.</div>`;
-                return;
-            }
-
+            llista.innerHTML = plantes.length === 0 ? `<div class="text-center py-20 text-gray-300 italic">Jardí buit. Clica +</div>` : "";
             plantes.forEach(p => {
                 const ultim = new Date(p.last);
                 const proper = new Date(ultim);
                 proper.setDate(ultim.getDate() + p.freq);
-                
-                const avui = new Date();
-                avui.setHours(0,0,0,0);
-                const properReg = new Date(proper);
-                properReg.setHours(0,0,0,0);
-                
-                const tocaRegar = avui >= properReg;
-
+                const toca = new Date().setHours(0,0,0,0) >= new Date(proper).setHours(0,0,0,0);
                 const card = document.createElement('div');
-                card.className = `bg-white p-4 rounded-3xl shadow-sm flex items-center border-l-[12px] transition-all ${tocaRegar ? 'border-red-500 bg-red-50' : 'border-green-500'}`;
-                
+                card.className = `bg-white p-4 rounded-3xl shadow-sm flex items-center border-l-[12px] ${toca ? 'border-red-500 bg-red-50' : 'border-green-500'}`;
                 card.innerHTML = `
-                    <img src="${p.photo}" class="w-16 h-16 rounded-full object-cover border-2 border-white shadow-sm">
+                    <img src="${p.photo}" class="w-16 h-16 rounded-full object-cover border-2 border-white">
                     <div class="ml-4 flex-1">
                         <div class="flex items-center gap-2">
-                            <h3 class="font-bold text-gray-800 text-base leading-none">${p.name}</h3>
+                            <h3 class="font-bold text-gray-800">${p.name}</h3>
                             <button onclick="obrirFormulari(${p.id})" class="text-xs text-gray-300">✏️</button>
                         </div>
-                        <p class="text-[9px] text-gray-400 mt-1 uppercase font-bold tracking-tighter">Últim: ${ultim.toLocaleDateString()}</p>
-                        <p class="text-xs ${tocaRegar ? 'due-date' : 'text-green-600'} font-black mt-1">
-                            ${proper.toLocaleDateString()}
-                        </p>
+                        <p class="text-[9px] text-gray-400 mt-1 uppercase">Últim: ${ultim.toLocaleDateString()}</p>
+                        <p class="text-xs ${toca ? 'due-date' : 'text-green-600'} font-black mt-1">${proper.toLocaleDateString()}</p>
                     </div>
                     <div class="flex flex-col items-end gap-3">
-                        <button onclick="regar(${p.id})" class="bg-blue-500 text-white text-[10px] px-4 py-2 rounded-xl font-black shadow-lg shadow-blue-100 active:scale-95 transition-transform uppercase">Regar</button>
+                        <button onclick="regar(${p.id})" class="bg-blue-500 text-white text-[10px] px-4 py-2 rounded-xl font-black shadow-lg uppercase">Regar</button>
                         <button onclick="esborrar(${p.id})" class="text-[8px] text-gray-200 font-bold uppercase">Esborrar</button>
-                    </div>
-                `;
+                    </div>`;
                 llista.appendChild(card);
             });
         }
-
         inicialitzar();
     </script>
 </body>
