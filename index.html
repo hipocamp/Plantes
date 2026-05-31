@@ -2,153 +2,207 @@
 <html lang="ca">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Control de Reg PRO</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Reg de Plantes</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/628/628283.png">
     <style>
         .due-date { color: #ef4444; font-weight: bold; animation: pulse 2s infinite; }
         @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
     </style>
 </head>
-<body class="bg-slate-50 pb-20">
+<body class="bg-gray-50 text-gray-900 pb-20">
 
+    <!-- CONTINGUT PRINCIPAL -->
     <div class="max-w-md mx-auto p-4">
-        <header class="flex justify-between items-center mb-6">
-            <h1 class="text-2xl font-bold text-green-800 tracking-tight">🌿 El meu Jardí</h1>
-            <button onclick="obrirModal()" class="bg-green-600 text-white w-12 h-12 rounded-full shadow-lg flex items-center justify-center text-2xl active:scale-95 transition-transform">
+        <header class="flex justify-between items-center mb-6 py-2">
+            <h1 class="text-2xl font-bold text-green-700">🌿 El meu Jardí</h1>
+            <button onclick="obrirFormulari()" class="bg-green-600 text-white w-12 h-12 rounded-full shadow-lg flex items-center justify-center text-3xl font-light active:bg-green-800">
                 +
             </button>
         </header>
 
-        <div id="plantList" class="space-y-4"></div>
+        <div id="llistaPlantes" class="space-y-4">
+            <!-- Les plantes sortiran aquí -->
+        </div>
     </div>
 
-    <!-- MODAL -->
-    <div id="modal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+    <!-- FORMULARI (MODAL) -->
+    <div id="modal" class="hidden fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-4 z-50">
         <div class="bg-white p-6 rounded-2xl w-full max-w-sm shadow-2xl overflow-y-auto max-h-[90vh]">
-            <h2 id="modalTitle" class="text-xl font-bold mb-4 text-gray-800">Nova Planta</h2>
+            <h2 id="modalTitol" class="text-xl font-bold mb-4 text-gray-800">Nova Planta</h2>
             
-            <input type="hidden" id="editId">
+            <input type="hidden" id="idEdicio">
             
-            <label class="text-xs font-bold text-gray-400 uppercase">Nom de la planta</label>
-            <input type="text" id="plantName" class="w-full border-b-2 border-gray-100 p-2 mb-4 outline-none focus:border-green-500">
-            
-            <label class="text-xs font-bold text-gray-400 uppercase">Cada quants dies es rega?</label>
-            <input type="number" id="plantFreq" value="3" class="w-full border-b-2 border-gray-100 p-2 mb-4 outline-none focus:border-green-500">
-            
-            <label class="text-xs font-bold text-gray-400 uppercase">Quan la vas regar per últim cop?</label>
-            <input type="date" id="lastWateredInput" class="w-full border-b-2 border-gray-100 p-2 mb-4 outline-none focus:border-green-500 bg-white">
-            
-            <div id="photoSection">
-                <label class="text-xs font-bold text-gray-400 uppercase">Foto (obligatòria només per a noves)</label>
-                <input type="file" id="plantPhoto" accept="image/*" class="w-full mb-6 text-sm file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:bg-green-50 file:text-green-700">
+            <div class="space-y-4">
+                <div>
+                    <label class="text-xs font-bold text-gray-400 uppercase">Nom</label>
+                    <input type="text" id="nomPlanta" class="w-full border-b-2 border-gray-100 p-2 outline-none focus:border-green-500">
+                </div>
+                
+                <div>
+                    <label class="text-xs font-bold text-gray-400 uppercase">Cada quants dies es rega?</label>
+                    <input type="number" id="freqPlanta" value="3" class="w-full border-b-2 border-gray-100 p-2 outline-none focus:border-green-500">
+                </div>
+                
+                <div>
+                    <label class="text-xs font-bold text-gray-400 uppercase">Últim reg (pots triar passat)</label>
+                    <input type="date" id="dataReg" class="w-full border-b-2 border-gray-100 p-2 outline-none focus:border-green-500 bg-white">
+                </div>
+                
+                <div id="seccioFoto">
+                    <label class="text-xs font-bold text-gray-400 uppercase text-red-500">Foto (OBLIGATÒRIA)</label>
+                    <input type="file" id="fotoPlanta" accept="image/*" class="w-full text-sm mt-2">
+                </div>
             </div>
             
-            <div class="flex justify-end space-x-3 mt-4">
-                <button onclick="tancarModal()" class="px-4 py-2 text-gray-400 font-medium">Cancel·lar</button>
-                <button onclick="savePlant()" id="btnGuardar" class="px-6 py-2 bg-green-600 text-white rounded-xl font-bold shadow-md">GUARDAR</button>
+            <div class="flex justify-end space-x-3 mt-8">
+                <button onclick="tancarFormulari()" class="px-4 py-2 text-gray-400 font-medium italic">Cancel·lar</button>
+                <button onclick="guardarPlanta()" id="btnGuardar" class="px-6 py-2 bg-green-600 text-white rounded-xl font-bold shadow-md">GUARDAR</button>
             </div>
         </div>
     </div>
 
     <script>
-        let plants = JSON.parse(localStorage.getItem('myPlants')) || [];
-        let currentEditId = null;
-
-        // Funció per obrir el formulari
-        function obrirModal(id = null) {
-            currentEditId = id;
-            const modal = document.getElementById('modal');
-            const title = document.getElementById('modalTitle');
-            const photoSection = document.getElementById('photoSection');
-            const dateInput = document.getElementById('lastWateredInput');
-            
-            // Posem la data d'avui per defecte al calendari formatada per a l'input date
-            const avui = new Date().toISOString().split('T')[0];
-            dateInput.value = avui;
-
-            modal.classList.remove('hidden');
-
-            if (id) {
-                const p = plants.find(plant => plant.id === id);
-                title.innerText = "Editar " + p.name;
-                document.getElementById('plantName').value = p.name;
-                document.getElementById('plantFreq').value = p.freq;
-                // Si la planta ja té data, la posem
-                if(p.lastWatered) {
-                    dateInput.value = p.lastWatered.split('T')[0];
-                }
-                photoSection.classList.add('hidden');
-            } else {
-                title.innerText = "Nova Planta";
-                document.getElementById('plantName').value = "";
-                document.getElementById('plantFreq').value = "3";
-                photoSection.classList.remove('hidden');
-                document.getElementById('plantPhoto').value = "";
-            }
+        // CARREGAR DADES AMB SEGURETAT
+        let plantes = [];
+        try {
+            const dadesGuardades = localStorage.getItem('plantes_v1');
+            plantes = dadesGuardades ? JSON.parse(dadesGuardades) : [];
+        } catch (e) {
+            console.error("Error carregant dades", e);
+            plantes = [];
         }
 
-        function tancarModal() {
+        // MOSTRAR FORMULARI
+        function obrirFormulari(id = null) {
+            const modal = document.getElementById('modal');
+            const dataInput = document.getElementById('dataReg');
+            
+            // Data d'avui per defecte
+            const avui = new Date().toISOString().split('T')[0];
+            dataInput.value = avui;
+
+            if (id) {
+                const p = plantes.find(x => x.id === id);
+                document.getElementById('idEdicio').value = id;
+                document.getElementById('modalTitol').innerText = "Editar " + p.name;
+                document.getElementById('nomPlanta').value = p.name;
+                document.getElementById('freqPlanta').value = p.freq;
+                document.getElementById('dataReg').value = p.lastReg.split('T')[0];
+                document.getElementById('seccioFoto').style.display = 'none';
+            } else {
+                document.getElementById('idEdicio').value = "";
+                document.getElementById('modalTitol').innerText = "Nova Planta";
+                document.getElementById('nomPlanta').value = "";
+                document.getElementById('freqPlanta').value = "3";
+                document.getElementById('seccioFoto').style.display = 'block';
+                document.getElementById('fotoPlanta').value = "";
+            }
+            modal.classList.remove('hidden');
+        }
+
+        function tancarFormulari() {
             document.getElementById('modal').classList.add('hidden');
         }
 
-        function savePlant() {
-            const name = document.getElementById('plantName').value;
-            const freq = parseInt(document.getElementById('plantFreq').value);
-            const manualDate = document.getElementById('lastWateredInput').value;
-            const photoFile = document.getElementById('plantPhoto').files[0];
+        // GUARDAR PLANTA
+        function guardarPlanta() {
+            const idEdicio = document.getElementById('idEdicio').value;
+            const nom = document.getElementById('nomPlanta').value;
+            const freq = parseInt(document.getElementById('freqPlanta').value);
+            const dataRegValue = document.getElementById('dataReg').value;
+            const fotoFile = document.getElementById('fotoPlanta').files[0];
 
-            if (!name || !manualDate) {
-                alert("Posa un nom i la data de l'últim reg!");
-                return;
-            }
+            if (!nom || !dataRegValue) return alert("Posa el nom i la data!");
 
-            // Si estem editant
-            if (currentEditId) {
-                plants = plants.map(p => {
-                    if (p.id === currentEditId) {
-                        return { ...p, name: name, freq: freq, lastWatered: new Date(manualDate).toISOString() };
+            const dataISO = new Date(dataRegValue).toISOString();
+
+            if (idEdicio) {
+                // MODIFICAR EXISTENT
+                plantes = plantes.map(p => {
+                    if (p.id == idEdicio) {
+                        return { ...p, name: nom, freq: freq, lastReg: dataISO };
                     }
                     return p;
                 });
-                actualitzarDades();
+                actualitzarTot();
             } else {
-                // Si és una nova planta necessitem foto
-                if (!photoFile) {
-                    alert("Afegeix una foto per a la nova planta!");
-                    return;
-                }
-                processarNovaPlanta(name, freq, new Date(manualDate).toISOString(), photoFile);
+                // CREAR NOVA (Necessita foto)
+                if (!fotoFile) return alert("Has de posar una foto!");
+                
+                const lector = new FileReader();
+                lector.onload = function(e) {
+                    const img = new Image();
+                    img.onload = function() {
+                        // Comprimir
+                        const canvas = document.createElement('canvas');
+                        const context = canvas.getContext('2d');
+                        const midaMax = 400;
+                        let ample = img.width;
+                        let alt = img.height;
+                        
+                        if (ample > alt) {
+                            if (ample > midaMax) { alt *= midaMax / ample; ample = midaMax; }
+                        } else {
+                            if (alt > midaMax) { ample *= midaMax / alt; alt = midaMax; }
+                        }
+                        canvas.width = ample;
+                        canvas.height = alt;
+                        context.drawImage(img, 0, 0, ample, alt);
+                        
+                        const novaPlanta = {
+                            id: Date.now(),
+                            name: nom,
+                            freq: freq,
+                            lastReg: dataISO,
+                            photo: canvas.toDataURL('image/jpeg', 0.7)
+                        };
+                        
+                        plantes.push(novaPlanta);
+                        actualitzarTot();
+                    };
+                    img.src = e.target.result;
+                };
+                lector.readAsDataURL(fotoFile);
             }
         }
 
-        function processarNovaPlanta(name, freq, lastWatered, file) {
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                const img = new Image();
-                img.onload = function() {
-                    const canvas = document.createElement('canvas');
-                    const scale = 400 / img.width;
-                    canvas.width = 400;
-                    canvas.height = img.height * scale;
-                    const ctx = canvas.getContext('2d');
-                    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-                    
-                    const newPlant = {
-                        id: Date.now(),
-                        name: name,
-                        freq: freq,
-                        lastWatered: lastWatered,
-                        photo: canvas.toDataURL('image/jpeg', 0.7)
-                    };
-                    plants.push(newPlant);
-                    actualitzarDades();
-                };
-                img.src = e.target.result;
-            };
-            reader.readAsDataURL(file);
+        function regarPlanta(id) {
+            plantes = plantes.map(p => {
+                if (p.id === id) p.lastReg = new Date().toISOString();
+                return p;
+            });
+            actualitzarTot();
         }
 
-        function waterPlant(id) {
-            plants = plants.map(p => {
+        function esborrarPlanta(id) {
+            if (confirm("Vols eliminar-la?")) {
+                plantes = plantes.filter(p => p.id !== id);
+                actualitzarTot();
+            }
+        }
+
+        function actualitzarTot() {
+            localStorage.setItem('plantes_v1', JSON.stringify(plantes));
+            dibuixarPlantes();
+            tancarFormulari();
+        }
+
+        function dibuixarPlantes() {
+            const llista = document.getElementById('llistaPlantes');
+            llista.innerHTML = "";
+
+            if (plantes.length === 0) {
+                llista.innerHTML = '<p class="text-center text-gray-400 mt-10 italic">No hi ha plantes.<br>Clica el botó + per afegir-ne.</p>';
+                return;
+            }
+
+            plantes.forEach(p => {
+                const dataUltim = new Date(p.lastReg);
+                const dataPropera = new Date(dataUltim);
+                dataPropera.setDate(dataUltim.getDate() + p.freq);
+                
+                const avui = new Date();
+                avui.setHours(0,0,0,0);
+                const proper = new Date(dataPropera);
+                proper.setHours(0,
