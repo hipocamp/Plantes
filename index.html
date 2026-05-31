@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Control de Reg</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Icona de planta -->
     <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/628/628283.png">
     <style>
         .due-date { color: #ef4444; font-weight: bold; animation: pulse 2s infinite; }
@@ -17,30 +16,29 @@
     <div class="max-w-md mx-auto p-4">
         <header class="flex justify-between items-center mb-6">
             <h1 class="text-2xl font-bold text-green-800">🌿 Les meves Plantes</h1>
-            <button onclick="document.getElementById('modal').classList.remove('hidden')" class="bg-green-600 text-white p-2 rounded-full shadow-lg">
-                ➕
+            <button onclick="document.getElementById('modal').classList.remove('hidden')" class="bg-green-600 text-white p-2 rounded-full shadow-lg w-10 h-10 flex items-center justify-center text-xl">
+                +
             </button>
         </header>
 
-        <!-- LLISTA DE PLANTES -->
-        <div id="plantList" class="space-y-4">
-            <!-- Es carregarà automàticament -->
-        </div>
+        <div id="plantList" class="space-y-4"></div>
     </div>
 
-    <!-- MODAL PER AFEGIR PLANTA -->
-    <div id="modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4">
-        <div class="bg-white p-6 rounded-xl w-full max-w-sm">
+    <!-- MODAL -->
+    <div id="modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+        <div class="bg-white p-6 rounded-xl w-full max-w-sm shadow-2xl">
             <h2 class="text-xl font-bold mb-4">Nova Planta</h2>
-            <input type="text" id="plantName" placeholder="Nom de la planta" class="w-full border p-2 mb-3 rounded">
-            <label class="text-sm text-gray-600">Cada quants dies es rega?</label>
-            <input type="number" id="plantFreq" value="3" class="w-full border p-2 mb-3 rounded">
-            <label class="text-sm text-gray-600">Foto de la planta:</label>
-            <input type="file" id="plantPhoto" accept="image/*" class="w-full mb-4 text-sm">
+            <input type="text" id="plantName" placeholder="Nom (ex: Hortènsia)" class="w-full border p-3 mb-3 rounded-lg focus:ring-2 focus:ring-green-500 outline-none">
             
-            <div class="flex justify-end space-x-2">
-                <button onclick="document.getElementById('modal').classList.add('hidden')" class="px-4 py-2 text-gray-500">Cancel·lar</button>
-                <button onclick="addPlant()" class="px-4 py-2 bg-green-600 text-white rounded">Guardar</button>
+            <label class="text-sm text-gray-600 block mb-1">Dies entre regs:</label>
+            <input type="number" id="plantFreq" value="3" class="w-full border p-3 mb-3 rounded-lg focus:ring-2 focus:ring-green-500">
+            
+            <label class="text-sm text-gray-600 block mb-1">Foto de la planta:</label>
+            <input type="file" id="plantPhoto" accept="image/*" class="w-full mb-4 text-sm file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:bg-green-50 file:text-green-700">
+            
+            <div class="flex justify-end space-x-3">
+                <button onclick="tancarModal()" class="px-4 py-2 text-gray-500 font-semibold">Cancel·lar</button>
+                <button onclick="addPlant()" id="btnGuardar" class="px-6 py-2 bg-green-600 text-white rounded-lg font-bold shadow-md active:bg-green-700">GUARDAR</button>
             </div>
         </div>
     </div>
@@ -48,26 +46,65 @@
     <script>
         let plants = JSON.parse(localStorage.getItem('myPlants')) || [];
 
+        function tancarModal() {
+            document.getElementById('modal').classList.add('hidden');
+            document.getElementById('plantName').value = "";
+            document.getElementById('plantPhoto').value = "";
+        }
+
         function addPlant() {
             const name = document.getElementById('plantName').value;
             const freq = document.getElementById('plantFreq').value;
             const photoFile = document.getElementById('plantPhoto').files[0];
+            const btn = document.getElementById('btnGuardar');
 
-            if (!name || !photoFile) return alert("Posa un nom i una foto!");
+            if (!name || !photoFile) {
+                alert("Si us plau, posa un nom i tria una foto!");
+                return;
+            }
+
+            btn.innerText = "Processant...";
+            btn.disabled = true;
 
             const reader = new FileReader();
-            reader.onloadend = function() {
-                const newPlant = {
-                    id: Date.now(),
-                    name: name,
-                    freq: parseInt(freq),
-                    lastWatered: new Date().toISOString(),
-                    photo: reader.result
+            reader.onload = function(event) {
+                const img = new Image();
+                img.onload = function() {
+                    // COMPRESSIÓ DE LA IMATGE
+                    const canvas = document.createElement('canvas');
+                    const MAX_WIDTH = 400; // Reduïm la mida perquè no bloquegi la memòria
+                    const scaleSize = MAX_WIDTH / img.width;
+                    canvas.width = MAX_WIDTH;
+                    canvas.height = img.height * scaleSize;
+
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+                    // Convertim a JPG de qualitat mitjana (0.7)
+                    const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
+
+                    const newPlant = {
+                        id: Date.now(),
+                        name: name,
+                        freq: parseInt(freq),
+                        lastWatered: new Date().toISOString(),
+                        photo: dataUrl
+                    };
+
+                    try {
+                        plants.push(newPlant);
+                        localStorage.setItem('myPlants', JSON.stringify(plants));
+                        renderPlants();
+                        tancarModal();
+                    } catch (e) {
+                        alert("Error: Massa plantes o fotos massa grans. Intenta-ho amb una altra foto.");
+                    }
+                    
+                    btn.innerText = "GUARDAR";
+                    btn.disabled = false;
                 };
-                plants.push(newPlant);
-                saveAndRender();
-                document.getElementById('modal').classList.add('hidden');
-            }
+                img.src = event.target.result;
+            };
             reader.readAsDataURL(photoFile);
         }
 
@@ -76,24 +113,25 @@
                 if (p.id === id) p.lastWatered = new Date().toISOString();
                 return p;
             });
-            saveAndRender();
+            localStorage.setItem('myPlants', JSON.stringify(plants));
+            renderPlants();
         }
 
         function deletePlant(id) {
-            if (confirm("Segur que vols eliminar-la?")) {
+            if (confirm("Segur que vols eliminar aquesta planta?")) {
                 plants = plants.filter(p => p.id !== id);
-                saveAndRender();
+                localStorage.setItem('myPlants', JSON.stringify(plants));
+                renderPlants();
             }
-        }
-
-        function saveAndRender() {
-            localStorage.setItem('myPlants', JSON.stringify(plants));
-            renderPlants();
         }
 
         function renderPlants() {
             const list = document.getElementById('plantList');
             list.innerHTML = "";
+
+            if (plants.length === 0) {
+                list.innerHTML = `<p class="text-center text-gray-400 mt-10 italic">Encara no has afegit cap planta. Clica el botó + per començar.</p>`;
+            }
 
             plants.forEach(p => {
                 const lastDate = new Date(p.lastWatered);
@@ -104,20 +142,20 @@
                 const isDue = avui >= nextDate;
 
                 const card = document.createElement('div');
-                card.className = "bg-white rounded-xl shadow-md overflow-hidden flex items-center p-3 border-l-4 " + (isDue ? "border-red-500" : "border-green-500");
+                card.className = "bg-white rounded-2xl shadow-sm overflow-hidden flex items-center p-4 border-l-8 " + (isDue ? "border-red-500 bg-red-50" : "border-green-500");
                 
                 card.innerHTML = `
-                    <img src="${p.photo}" class="w-20 h-20 object-cover rounded-lg mr-4">
+                    <img src="${p.photo}" class="w-16 h-16 object-cover rounded-full mr-4 border-2 border-white shadow-sm">
                     <div class="flex-1">
-                        <h3 class="font-bold text-gray-800">${p.name}</h3>
-                        <p class="text-xs text-gray-500">Regat: ${lastDate.toLocaleDateString()}</p>
-                        <p class="text-sm ${isDue ? 'due-date' : 'text-green-600'}">
+                        <h3 class="font-bold text-gray-800 text-lg">${p.name}</h3>
+                        <p class="text-xs text-gray-400">Regat: ${lastDate.toLocaleDateString()}</p>
+                        <p class="text-sm ${isDue ? 'due-date' : 'text-green-600'} font-medium">
                             Proper reg: ${nextDate.toLocaleDateString()}
                         </p>
                     </div>
                     <div class="flex flex-col space-y-2">
-                        <button onclick="waterPlant(${p.id})" class="bg-blue-100 text-blue-600 p-2 rounded text-xs font-bold text-center">💧 REGAR</button>
-                        <button onclick="deletePlant(${p.id})" class="text-gray-300 text-xs text-right">Eliminar</button>
+                        <button onclick="waterPlant(${p.id})" class="bg-blue-500 text-white px-3 py-2 rounded-lg text-xs font-bold shadow-sm active:bg-blue-600">💧 REGAR</button>
+                        <button onclick="deletePlant(${p.id})" class="text-gray-300 text-[10px] uppercase font-bold text-center">Eliminar</button>
                     </div>
                 `;
                 list.appendChild(card);
