@@ -3,20 +3,22 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Control de Reg</title>
+    <title>Control de Reg PRO</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/628/628283.png">
     <style>
         .due-date { color: #ef4444; font-weight: bold; animation: pulse 2s infinite; }
         @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
+        .bg-watered { animation: flash 1s ease-out; }
+        @keyframes flash { from { background-color: #dbeafe; } to { background-color: white; } }
     </style>
 </head>
-<body class="bg-green-50 pb-20">
+<body class="bg-slate-50 pb-20">
 
     <div class="max-w-md mx-auto p-4">
         <header class="flex justify-between items-center mb-6">
-            <h1 class="text-2xl font-bold text-green-800">🌿 Les meves Plantes</h1>
-            <button onclick="document.getElementById('modal').classList.remove('hidden')" class="bg-green-600 text-white p-2 rounded-full shadow-lg w-10 h-10 flex items-center justify-center text-xl">
+            <h1 class="text-2xl font-bold text-green-800 tracking-tight">🌿 El meu Jardí</h1>
+            <button onclick="obrirModal()" class="bg-green-600 text-white w-12 h-12 rounded-full shadow-lg flex items-center justify-center text-2xl active:scale-95 transition-transform">
                 +
             </button>
         </header>
@@ -24,88 +26,110 @@
         <div id="plantList" class="space-y-4"></div>
     </div>
 
-    <!-- MODAL -->
-    <div id="modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-        <div class="bg-white p-6 rounded-xl w-full max-w-sm shadow-2xl">
-            <h2 class="text-xl font-bold mb-4">Nova Planta</h2>
-            <input type="text" id="plantName" placeholder="Nom (ex: Hortènsia)" class="w-full border p-3 mb-3 rounded-lg focus:ring-2 focus:ring-green-500 outline-none">
+    <!-- MODAL (PER AFEGIR I EDITAR) -->
+    <div id="modal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+        <div class="bg-white p-6 rounded-2xl w-full max-w-sm shadow-2xl">
+            <h2 id="modalTitle" class="text-xl font-bold mb-4 text-gray-800">Nova Planta</h2>
             
-            <label class="text-sm text-gray-600 block mb-1">Dies entre regs:</label>
-            <input type="number" id="plantFreq" value="3" class="w-full border p-3 mb-3 rounded-lg focus:ring-2 focus:ring-green-500">
+            <input type="hidden" id="editId">
             
-            <label class="text-sm text-gray-600 block mb-1">Foto de la planta:</label>
-            <input type="file" id="plantPhoto" accept="image/*" class="w-full mb-4 text-sm file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:bg-green-50 file:text-green-700">
+            <label class="text-xs font-bold text-gray-400 uppercase">Nom de la planta</label>
+            <input type="text" id="plantName" placeholder="Ex: Cactus de l'entrada" class="w-full border-b-2 border-gray-100 p-3 mb-4 outline-none focus:border-green-500 transition-colors">
+            
+            <label class="text-xs font-bold text-gray-400 uppercase">Freqüència de reg (cada quants dies)</label>
+            <input type="number" id="plantFreq" value="3" class="w-full border-b-2 border-gray-100 p-3 mb-4 outline-none focus:border-green-500 transition-colors">
+            
+            <div id="photoSection">
+                <label class="text-xs font-bold text-gray-400 uppercase">Foto</label>
+                <input type="file" id="plantPhoto" accept="image/*" class="w-full mb-6 text-sm file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:bg-green-50 file:text-green-700">
+            </div>
             
             <div class="flex justify-end space-x-3">
-                <button onclick="tancarModal()" class="px-4 py-2 text-gray-500 font-semibold">Cancel·lar</button>
-                <button onclick="addPlant()" id="btnGuardar" class="px-6 py-2 bg-green-600 text-white rounded-lg font-bold shadow-md active:bg-green-700">GUARDAR</button>
+                <button onclick="tancarModal()" class="px-4 py-2 text-gray-400 font-medium">Cancel·lar</button>
+                <button onclick="savePlant()" id="btnGuardar" class="px-6 py-2 bg-green-600 text-white rounded-xl font-bold shadow-md">GUARDAR</button>
             </div>
         </div>
     </div>
 
     <script>
         let plants = JSON.parse(localStorage.getItem('myPlants')) || [];
+        let currentEditId = null;
+
+        function obrirModal(id = null) {
+            currentEditId = id;
+            const modal = document.getElementById('modal');
+            const title = document.getElementById('modalTitle');
+            const photoSection = document.getElementById('photoSection');
+            
+            modal.classList.remove('hidden');
+
+            if (id) {
+                const p = plants.find(plant => plant.id === id);
+                title.innerText = "Editar " + p.name;
+                document.getElementById('plantName').value = p.name;
+                document.getElementById('plantFreq').value = p.freq;
+                photoSection.classList.add('hidden'); // No cal tornar a pujar foto si editem
+            } else {
+                title.innerText = "Nova Planta";
+                document.getElementById('plantName').value = "";
+                document.getElementById('plantFreq').value = "3";
+                photoSection.classList.remove('hidden');
+            }
+        }
 
         function tancarModal() {
             document.getElementById('modal').classList.add('hidden');
-            document.getElementById('plantName').value = "";
-            document.getElementById('plantPhoto').value = "";
         }
 
-        function addPlant() {
+        async function savePlant() {
             const name = document.getElementById('plantName').value;
-            const freq = document.getElementById('plantFreq').value;
+            const freq = parseInt(document.getElementById('plantFreq').value);
             const photoFile = document.getElementById('plantPhoto').files[0];
-            const btn = document.getElementById('btnGuardar');
 
-            if (!name || !photoFile) {
-                alert("Si us plau, posa un nom i tria una foto!");
+            if (!name || (!currentEditId && !photoFile)) {
+                alert("Emplena tots els camps!");
                 return;
             }
 
-            btn.innerText = "Processant...";
-            btn.disabled = true;
+            if (currentEditId) {
+                // MODO EDICIÓ
+                plants = plants.map(p => {
+                    if (p.id === currentEditId) {
+                        return { ...p, name: name, freq: freq };
+                    }
+                    return p;
+                });
+                actualitzarDades();
+            } else {
+                // MODO NOU
+                processarNovaPlanta(name, freq, photoFile);
+            }
+        }
 
+        function processarNovaPlanta(name, freq, file) {
             const reader = new FileReader();
-            reader.onload = function(event) {
+            reader.onload = function(e) {
                 const img = new Image();
                 img.onload = function() {
-                    // COMPRESSIÓ DE LA IMATGE
                     const canvas = document.createElement('canvas');
-                    const MAX_WIDTH = 400; // Reduïm la mida perquè no bloquegi la memòria
-                    const scaleSize = MAX_WIDTH / img.width;
-                    canvas.width = MAX_WIDTH;
-                    canvas.height = img.height * scaleSize;
-
-                    const ctx = canvas.getContext('2d');
-                    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-
-                    // Convertim a JPG de qualitat mitjana (0.7)
-                    const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
-
+                    const scale = 400 / img.width;
+                    canvas.width = 400;
+                    canvas.height = img.height * scale;
+                    canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+                    
                     const newPlant = {
                         id: Date.now(),
                         name: name,
-                        freq: parseInt(freq),
+                        freq: freq,
                         lastWatered: new Date().toISOString(),
-                        photo: dataUrl
+                        photo: canvas.toDataURL('image/jpeg', 0.7)
                     };
-
-                    try {
-                        plants.push(newPlant);
-                        localStorage.setItem('myPlants', JSON.stringify(plants));
-                        renderPlants();
-                        tancarModal();
-                    } catch (e) {
-                        alert("Error: Massa plantes o fotos massa grans. Intenta-ho amb una altra foto.");
-                    }
-                    
-                    btn.innerText = "GUARDAR";
-                    btn.disabled = false;
+                    plants.push(newPlant);
+                    actualitzarDades();
                 };
-                img.src = event.target.result;
+                img.src = e.target.result;
             };
-            reader.readAsDataURL(photoFile);
+            reader.readAsDataURL(file);
         }
 
         function waterPlant(id) {
@@ -113,16 +137,20 @@
                 if (p.id === id) p.lastWatered = new Date().toISOString();
                 return p;
             });
-            localStorage.setItem('myPlants', JSON.stringify(plants));
-            renderPlants();
+            actualitzarDades();
         }
 
         function deletePlant(id) {
-            if (confirm("Segur que vols eliminar aquesta planta?")) {
+            if (confirm("Eliminar aquesta planta?")) {
                 plants = plants.filter(p => p.id !== id);
-                localStorage.setItem('myPlants', JSON.stringify(plants));
-                renderPlants();
+                actualitzarDades();
             }
+        }
+
+        function actualitzarDades() {
+            localStorage.setItem('myPlants', JSON.stringify(plants));
+            renderPlants();
+            tancarModal();
         }
 
         function renderPlants() {
@@ -130,36 +158,46 @@
             list.innerHTML = "";
 
             if (plants.length === 0) {
-                list.innerHTML = `<p class="text-center text-gray-400 mt-10 italic">Encara no has afegit cap planta. Clica el botó + per començar.</p>`;
+                list.innerHTML = `<p class="text-center text-gray-400 mt-20">No hi ha plantes. Clica +</p>`;
+                return;
             }
 
             plants.forEach(p => {
-                const lastDate = new Date(p.lastWatered);
-                const nextDate = new Date(lastDate);
-                nextDate.setDate(lastDate.getDate() + p.freq);
+                const last = new Date(p.lastWatered);
+                const next = new Date(last);
+                next.setDate(last.getDate() + p.freq);
                 
-                const avui = new Date();
-                const isDue = avui >= nextDate;
+                const isDue = new Date() >= next;
 
                 const card = document.createElement('div');
-                card.className = "bg-white rounded-2xl shadow-sm overflow-hidden flex items-center p-4 border-l-8 " + (isDue ? "border-red-500 bg-red-50" : "border-green-500");
+                card.className = `bg-white rounded-2xl shadow-sm p-4 flex items-center border-l-8 transition-all ${isDue ? 'border-red-500' : 'border-green-500'}`;
                 
                 card.innerHTML = `
-                    <img src="${p.photo}" class="w-16 h-16 object-cover rounded-full mr-4 border-2 border-white shadow-sm">
-                    <div class="flex-1">
-                        <h3 class="font-bold text-gray-800 text-lg">${p.name}</h3>
-                        <p class="text-xs text-gray-400">Regat: ${lastDate.toLocaleDateString()}</p>
-                        <p class="text-sm ${isDue ? 'due-date' : 'text-green-600'} font-medium">
-                            Proper reg: ${nextDate.toLocaleDateString()}
+                    <img src="${p.photo}" class="w-16 h-16 object-cover rounded-full shadow-inner bg-gray-100">
+                    <div class="ml-4 flex-1">
+                        <div class="flex items-center">
+                            <h3 class="font-bold text-gray-800">${p.name}</h3>
+                            <button onclick="obrirModal(${p.id})" class="ml-2 text-gray-300 hover:text-blue-500 text-xs">✏️</button>
+                        </div>
+                        <p class="text-[10px] text-gray-400">Regat fa: ${calcularDies(last)}</p>
+                        <p class="text-xs ${isDue ? 'due-date' : 'text-green-600'} font-bold mt-1">
+                            Proper: ${next.toLocaleDateString()}
                         </p>
                     </div>
-                    <div class="flex flex-col space-y-2">
-                        <button onclick="waterPlant(${p.id})" class="bg-blue-500 text-white px-3 py-2 rounded-lg text-xs font-bold shadow-sm active:bg-blue-600">💧 REGAR</button>
-                        <button onclick="deletePlant(${p.id})" class="text-gray-300 text-[10px] uppercase font-bold text-center">Eliminar</button>
+                    <div class="flex flex-col gap-2">
+                        <button onclick="waterPlant(${p.id})" class="bg-blue-500 text-white px-4 py-2 rounded-xl text-[10px] font-black shadow-blue-200 shadow-lg active:scale-90 transition-transform">💧 REGAR</button>
+                        <button onclick="deletePlant(${p.id})" class="text-[9px] text-gray-300 font-bold uppercase tracking-tighter">Esborrar</button>
                     </div>
                 `;
                 list.appendChild(card);
             });
+        }
+
+        function calcularDies(data) {
+            const diff = Math.floor((new Date() - data) / (1000 * 60 * 60 * 24));
+            if (diff === 0) return "avui";
+            if (diff === 1) return "1 dia";
+            return diff + " dies";
         }
 
         renderPlants();
