@@ -3,155 +3,109 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Reg de Plantes TEST</title>
+    <title>Reg de Plantes PRO</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .due-date { color: #ef4444; font-weight: bold; animation: pulse 2s infinite; }
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
+    </style>
 </head>
-<body class="bg-gray-100 pb-20">
+<body class="bg-gray-50 pb-20 text-gray-800">
 
     <div class="max-w-md mx-auto p-4">
-        <header class="flex justify-between items-center mb-6 py-4">
-            <h1 class="text-2xl font-bold text-green-700">🌿 El meu Jardí</h1>
-            <div class="space-x-2">
-                <!-- BOTÓ PER NETEJAR TOT SI FALLA -->
-                <button onclick="resetejarApp()" class="text-[10px] bg-red-100 text-red-600 px-2 py-1 rounded">Reset</button>
-                <button onclick="obrirFormulari()" class="bg-green-600 text-white w-12 h-12 rounded-full shadow-lg text-3xl font-light">
-                    +
-                </button>
+        <!-- CAPÇALERA -->
+        <header class="flex justify-between items-center mb-6 py-4 border-b border-gray-200">
+            <div>
+                <h1 class="text-2xl font-bold text-green-700 leading-none">🌿 El meu Jardí</h1>
+                <button onclick="resetejarTot()" class="text-[9px] text-red-400 font-bold uppercase mt-1 tracking-widest">Reiniciar App</button>
             </div>
+            <button onclick="obrirFormulari()" class="bg-green-600 text-white w-12 h-12 rounded-full shadow-lg text-3xl flex items-center justify-center active:scale-90 transition-transform">
+                +
+            </button>
         </header>
 
-        <div id="llistaPlantes" class="space-y-4 text-center text-gray-500 pt-10">
-            Carregant...
+        <!-- LLISTA DE PLANTES -->
+        <div id="llistaPlantes" class="space-y-4">
+            <!-- Es genera dinàmicament -->
         </div>
     </div>
 
-    <!-- FORMULARI -->
-    <div id="modal" class="hidden fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50">
-        <div class="bg-white p-6 rounded-2xl w-full max-w-sm">
-            <h2 class="text-xl font-bold mb-4">Nova Planta</h2>
+    <!-- MODAL (FORMULARI) -->
+    <div id="modal" class="hidden fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+        <div class="bg-white p-6 rounded-3xl w-full max-w-sm shadow-2xl">
+            <h2 id="modalTitol" class="text-xl font-bold mb-6 text-gray-800 text-center">Nova Planta</h2>
+            
+            <input type="hidden" id="idEdicio">
+            
             <div class="space-y-4">
-                <input type="text" id="nom" placeholder="Nom de la planta" class="w-full border-b p-2 outline-none">
-                <input type="number" id="freq" value="3" class="w-full border-b p-2 outline-none">
-                <input type="date" id="data" class="w-full border-b p-2 outline-none bg-white">
-                <input type="file" id="foto" accept="image/*" class="w-full text-sm">
+                <div>
+                    <label class="text-[10px] font-bold text-gray-400 uppercase ml-1">Nom de la planta</label>
+                    <input type="text" id="nom" class="w-full bg-gray-50 rounded-xl p-3 outline-none focus:ring-2 focus:ring-green-500 border-none text-sm">
+                </div>
+                
+                <div>
+                    <label class="text-[10px] font-bold text-gray-400 uppercase ml-1">Freqüència (cada quants dies)</label>
+                    <input type="number" id="freq" value="3" class="w-full bg-gray-50 rounded-xl p-3 outline-none focus:ring-2 focus:ring-green-500 border-none text-sm">
+                </div>
+                
+                <div>
+                    <label class="text-[10px] font-bold text-gray-400 uppercase ml-1">Quan la vas regar per últim cop?</label>
+                    <input type="date" id="data" class="w-full bg-gray-50 rounded-xl p-3 outline-none focus:ring-2 focus:ring-green-500 border-none text-sm">
+                </div>
+                
+                <div id="seccioFoto">
+                    <label class="text-[10px] font-bold text-gray-400 uppercase ml-1">Foto</label>
+                    <input type="file" id="foto" accept="image/*" class="w-full text-[10px] text-gray-500 mt-1 file:bg-green-100 file:border-0 file:rounded-full file:px-4 file:py-1 file:text-green-700 file:font-bold">
+                </div>
             </div>
-            <div class="flex justify-end space-x-3 mt-6">
-                <button onclick="document.getElementById('modal').classList.add('hidden')" class="px-4 py-2 text-gray-400">Cancel·lar</button>
-                <button onclick="guardar()" class="px-6 py-2 bg-green-600 text-white rounded-lg font-bold">GUARDAR</button>
+            
+            <div class="flex justify-between mt-8">
+                <button onclick="tancarFormulari()" class="text-sm text-gray-400 font-medium px-4 py-2">Enrere</button>
+                <button onclick="guardar()" class="bg-green-600 text-white px-8 py-3 rounded-2xl font-bold shadow-lg active:bg-green-700">GUARDAR</button>
             </div>
         </div>
     </div>
 
     <script>
-        // 1. GESTIÓ D'ERRORS CRÍTICS
-        window.onerror = function(msg) { alert("Error detectat: " + msg); };
-
         let plantes = [];
 
-        // 2. CARREGAR DADES
-        function carregar() {
+        // 1. CARREGAR DADES
+        function inicialitzar() {
             try {
-                const guardat = localStorage.getItem('plantes_v2');
-                plantes = guardat ? JSON.parse(guardat) : [];
+                const dades = localStorage.getItem('plantes_vFinal');
+                plantes = dades ? JSON.parse(dades) : [];
                 dibuixar();
             } catch (e) {
-                alert("Error llegint dades. Fes Reset.");
+                console.error("Error carregant", e);
                 plantes = [];
             }
         }
 
-        function resetejarApp() {
-            if(confirm("Vols esborrar-ho tot per arreglar l'app?")) {
+        // 2. RESET TOTAL
+        function resetejarTot() {
+            if(confirm("Vols esborrar-ho tot i començar de zero?")) {
                 localStorage.clear();
                 location.reload();
             }
         }
 
-        function obrirFormulari() {
-            console.log("Botó premut"); // Per veure al navegador de PC
-            document.getElementById('modal').classList.remove('hidden');
-            document.getElementById('data').value = new Date().toISOString().split('T')[0];
-        }
+        // 3. FORMULARI
+        function obrirFormulari(id = null) {
+            const modal = document.getElementById('modal');
+            const dataInput = document.getElementById('data');
+            const seccioFoto = document.getElementById('seccioFoto');
+            const idInput = document.getElementById('idEdicio');
+            const titol = document.getElementById('modalTitol');
 
-        function guardar() {
-            const nom = document.getElementById('nom').value;
-            const freq = parseInt(document.getElementById('freq').value);
-            const data = document.getElementById('data').value;
-            const fotoFile = document.getElementById('foto').files[0];
-
-            if (!nom || !fotoFile || !data) {
-                alert("Falta nom, data o foto!");
-                return;
-            }
-
-            const lector = new FileReader();
-            lector.onload = function(e) {
-                const img = new Image();
-                img.onload = function() {
-                    const canvas = document.createElement('canvas');
-                    const ctx = canvas.getContext('2d');
-                    canvas.width = 300; // Molt petita per evitar errors de memòria
-                    canvas.height = (img.height * 300) / img.width;
-                    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-                    
-                    const nova = {
-                        id: Date.now(),
-                        name: nom,
-                        freq: freq,
-                        last: new Date(data).toISOString(),
-                        photo: canvas.toDataURL('image/jpeg', 0.6)
-                    };
-                    
-                    plantes.push(nova);
-                    localStorage.setItem('plantes_v2', JSON.stringify(plantes));
-                    document.getElementById('modal').classList.add('hidden');
-                    dibuixar();
-                };
-                img.src = e.target.result;
-            };
-            lector.readAsDataURL(fotoFile);
-        }
-
-        function regar(id) {
-            plantes = plantes.map(p => {
-                if (p.id === id) p.last = new Date().toISOString();
-                return p;
-            });
-            localStorage.setItem('plantes_v2', JSON.stringify(plantes));
-            dibuixar();
-        }
-
-        function dibuixar() {
-            const llista = document.getElementById('llistaPlantes');
-            llista.innerHTML = "";
-
-            if (plantes.length === 0) {
-                llista.innerHTML = "No hi ha plantes. Clica +";
-                return;
-            }
-
-            plantes.forEach(p => {
-                const last = new Date(p.last);
-                const next = new Date(last);
-                next.setDate(last.getDate() + p.freq);
-                const isDue = new Date() >= next;
-
-                const card = document.createElement('div');
-                card.className = "bg-white p-4 rounded-xl shadow flex items-center border-l-4 " + (isDue ? "border-red-500" : "border-green-500");
-                card.innerHTML = `
-                    <img src="${p.photo}" class="w-12 h-12 rounded-full object-cover">
-                    <div class="ml-3 flex-1 text-left">
-                        <h3 class="font-bold text-sm">${p.name}</h3>
-                        <p class="text-[10px] text-gray-400">Toca: ${next.toLocaleDateString()}</p>
-                    </div>
-                    <button onclick="regar(${p.id})" class="bg-blue-500 text-white text-[10px] px-3 py-2 rounded-lg font-bold">REGAR</button>
-                `;
-                llista.appendChild(card);
-            });
-        }
-
-        // INICIAR SEMPRE
-        carregar();
-    </script>
-</body>
-</html>
+            modal.classList.remove('hidden');
+            
+            if (id) {
+                const p = plantes.find(x => x.id === id);
+                idInput.value = id;
+                titol.innerText = "Editar Planta";
+                document.getElementById('nom').value = p.name;
+                document.getElementById('freq').value = p.freq;
+                document.getElementById('data').value = p.last.split('T')[0];
+                seccioFoto.classList.add('hidden'); // No demanem foto per editar
+            } else {
+                idInput.value
