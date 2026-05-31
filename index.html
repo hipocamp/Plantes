@@ -41,7 +41,7 @@
             <input type="date" id="lastWateredInput" class="w-full border-b-2 border-gray-100 p-2 mb-4 outline-none focus:border-green-500 bg-white">
             
             <div id="photoSection">
-                <label class="text-xs font-bold text-gray-400 uppercase">Foto</label>
+                <label class="text-xs font-bold text-gray-400 uppercase">Foto (obligatòria només per a noves)</label>
                 <input type="file" id="plantPhoto" accept="image/*" class="w-full mb-6 text-sm file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:bg-green-50 file:text-green-700">
             </div>
             
@@ -56,11 +56,7 @@
         let plants = JSON.parse(localStorage.getItem('myPlants')) || [];
         let currentEditId = null;
 
-        // Estableix la data d'avui per defecte al calendari
-        function formatDataISO(date) {
-            return date.toISOString().split('T')[0];
-        }
-
+        // Funció per obrir el formulari
         function obrirModal(id = null) {
             currentEditId = id;
             const modal = document.getElementById('modal');
@@ -68,21 +64,28 @@
             const photoSection = document.getElementById('photoSection');
             const dateInput = document.getElementById('lastWateredInput');
             
+            // Posem la data d'avui per defecte al calendari formatada per a l'input date
+            const avui = new Date().toISOString().split('T')[0];
+            dateInput.value = avui;
+
             modal.classList.remove('hidden');
-            dateInput.value = formatDataISO(new Date()); // Per defecte: avui
 
             if (id) {
                 const p = plants.find(plant => plant.id === id);
                 title.innerText = "Editar " + p.name;
                 document.getElementById('plantName').value = p.name;
                 document.getElementById('plantFreq').value = p.freq;
-                dateInput.value = formatDataISO(new Date(p.lastWatered));
+                // Si la planta ja té data, la posem
+                if(p.lastWatered) {
+                    dateInput.value = p.lastWatered.split('T')[0];
+                }
                 photoSection.classList.add('hidden');
             } else {
                 title.innerText = "Nova Planta";
                 document.getElementById('plantName').value = "";
                 document.getElementById('plantFreq').value = "3";
                 photoSection.classList.remove('hidden');
+                document.getElementById('plantPhoto').value = "";
             }
         }
 
@@ -90,23 +93,62 @@
             document.getElementById('modal').classList.add('hidden');
         }
 
-        async function savePlant() {
+        function savePlant() {
             const name = document.getElementById('plantName').value;
             const freq = parseInt(document.getElementById('plantFreq').value);
             const manualDate = document.getElementById('lastWateredInput').value;
             const photoFile = document.getElementById('plantPhoto').files[0];
 
-            if (!name || !manualDate || (!currentEditId && !photoFile)) {
-                alert("Emplena tots els camps i la foto!");
+            if (!name || !manualDate) {
+                alert("Posa un nom i la data de l'últim reg!");
                 return;
             }
 
-            // Crear data a partir de l'input (format local)
-            const lastWatered = new Date(manualDate).toISOString();
-
+            // Si estem editant
             if (currentEditId) {
                 plants = plants.map(p => {
                     if (p.id === currentEditId) {
-                        return { ...p, name: name, freq: freq, lastWatered: lastWatered };
+                        return { ...p, name: name, freq: freq, lastWatered: new Date(manualDate).toISOString() };
                     }
                     return p;
+                });
+                actualitzarDades();
+            } else {
+                // Si és una nova planta necessitem foto
+                if (!photoFile) {
+                    alert("Afegeix una foto per a la nova planta!");
+                    return;
+                }
+                processarNovaPlanta(name, freq, new Date(manualDate).toISOString(), photoFile);
+            }
+        }
+
+        function processarNovaPlanta(name, freq, lastWatered, file) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const img = new Image();
+                img.onload = function() {
+                    const canvas = document.createElement('canvas');
+                    const scale = 400 / img.width;
+                    canvas.width = 400;
+                    canvas.height = img.height * scale;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                    
+                    const newPlant = {
+                        id: Date.now(),
+                        name: name,
+                        freq: freq,
+                        lastWatered: lastWatered,
+                        photo: canvas.toDataURL('image/jpeg', 0.7)
+                    };
+                    plants.push(newPlant);
+                    actualitzarDades();
+                };
+                img.src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function waterPlant(id) {
+            plants = plants.map(p => {
